@@ -1,27 +1,24 @@
 package com.example.taskmanager.model;
 
 public class UserModel {
-    private String id;
-    private String name;
+    private String email;
+    private final String password;
 
-    public UserModel(String id, String name) {
-        this.id = id;
-        this.name = name;
+    public UserModel(String id, String email, String password) {
+        this.email = email;
+        this.password = password;
     }
 
-    public String getId() {
-        return id;
+    public String getEmail() {
+        return email;
     }
 
-    public void setId(String id) {
-        this.id = id;
+    public void setEmail(String name) {
+        this.email = name;
     }
 
-    public String getName() {
-        return name;
+    public String getPassword() {
+        return password;
     }
 
-    public void setName(String name) {
-        this.name = name;
-    }
 }
