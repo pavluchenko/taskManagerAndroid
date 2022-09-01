@@ -9,14 +9,15 @@ import androidx.annotation.RequiresApi;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 
-import com.example.taskmanager.model.TaskModel;
-import com.example.taskmanager.model.UserProfileModel;
+import com.example.taskmanager.model.Task;
+import com.example.taskmanager.model.UserProfile;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
-import com.google.firebase.database.annotations.NotNull;
+
+import org.jetbrains.annotations.NotNull;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -24,78 +25,79 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class TaskListRepository {
+
     public static final String TAG = "TodoListRepository";
 
-    private final DatabaseReference myRef;
-    private final MutableLiveData<List<TaskModel>> allTodos;
+    private final DatabaseReference database;
+    private final MutableLiveData<List<Task>> allTasks;
     private final MutableLiveData<String> currentUser;
-    private final List<TaskModel> todos;
+    private final List<Task> tasks;
 
-    public TaskListRepository(Application application) {
-        myRef = FirebaseDatabase.getInstance().getReference("todos");
-        todos = new ArrayList<>();
-        allTodos = new MutableLiveData<>();
+    public TaskListRepository(Application qpp) {
+        database = FirebaseDatabase.getInstance().getReference("tasks");
+        tasks = new ArrayList<>();
+        allTasks = new MutableLiveData<>();
         currentUser = new MutableLiveData<>();
     }
 
-    public LiveData<List<TaskModel>> getAllTodos() {
-        return allTodos;
+    public LiveData<List<Task>> getAllTasks() {
+        return allTasks;
     }
 
-    public LiveData<String> getCurrentUser() { return currentUser; }
-
-    public void insertTask(String id, String date, TaskModel todo) {
-        String key = myRef.push().getKey();
-        todo.setKey(key);
-        myRef.child(id).child(date).child(key).setValue(todo);
-        todos.add(todo);
-        allTodos.setValue(todos);
+    public LiveData<String> getCurrentUser() {
+        return currentUser;
     }
 
-    public void updateTask(String id, String date, TaskModel todo, int position) {
+    public void insertTask(String id, String date, Task task) {
+        String key = database.push().getKey();
+        task.setKey(key);
+        database.child(id).child(date).child(key).setValue(task);
+        tasks.add(task);
+        allTasks.setValue(tasks);
+    }
+
+    public void updateTask(String id, String date, Task task, int position) {
         Log.d(TAG, id);
         Log.d(TAG, date);
-        Log.d(TAG, todo.getKey());
-        myRef.child(id).child(date).child(todo.getKey()).setValue(todo);
-        todos.get(position).setTitle(todo.getTitle());
-        todos.get(position).setContent(todo.getContent());
-        todos.get(position).setHour(todo.getHour());
-        todos.get(position).setMinute(todo.getMinute());
-        allTodos.setValue(todos);
+        Log.d(TAG, task.getKey());
+        database.child(id).child(date).child(task.getKey()).setValue(task);
+        tasks.get(position).setTitle(task.getTitle());
+        tasks.get(position).setContent(task.getContent());
+        tasks.get(position).setHour(task.getHour());
+        tasks.get(position).setMinute(task.getMinute());
+        allTasks.setValue(tasks);
     }
 
-    public void deleteTask(String id, String date, TaskModel todo, int position) {
-        myRef.child(id).child(date).child(todo.getKey()).removeValue();
-        todos.remove(position);
-        allTodos.setValue(todos);
+    public void deleteTask(String id, String date, Task task, int position) {
+        database.child(id).child(date).child(task.getKey()).removeValue();
+        tasks.remove(position);
+        allTasks.setValue(tasks);
     }
 
     public void getTasks(String id, String date) {
-        myRef.child(id).child(date).addListenerForSingleValueEvent(new ValueEventListener() {
+        database.child(id).child(date).addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull @NotNull DataSnapshot snapshot) {
-                todos.clear();
-                for (DataSnapshot snapshot1: snapshot.getChildren()) {
-                    TaskModel todo = snapshot1.getValue(TaskModel.class);
-                    todos.add(todo);
+                tasks.clear();
+                for (DataSnapshot snapshot1 : snapshot.getChildren()) {
+                    Task task = snapshot1.getValue(Task.class);
+                    tasks.add(task);
                 }
 
                 DatabaseReference profilesRef = FirebaseDatabase.getInstance().getReference("profiles");
                 profilesRef.child(id).addListenerForSingleValueEvent(new ValueEventListener() {
                     @Override
                     public void onDataChange(@NonNull @NotNull DataSnapshot snapshot) {
-                        UserProfileModel userProfile = snapshot.getValue(UserProfileModel.class);
+                        UserProfile userProfile = snapshot.getValue(UserProfile.class);
                         if (userProfile != null)
-                            currentUser.setValue(userProfile.getUserName());
+                            currentUser.setValue(userProfile.getNickName());
                     }
 
                     @Override
                     public void onCancelled(@NonNull @NotNull DatabaseError error) {
-
                     }
                 });
-
-                allTodos.setValue(todos);
+                allTasks.setValue(tasks);
             }
 
             @Override
@@ -114,13 +116,13 @@ public class TaskListRepository {
     }
 
     public void init() {
-        myRef.addListenerForSingleValueEvent(new ValueEventListener() {
+        database.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull @NotNull DataSnapshot snapshot) {
-                for (DataSnapshot snapshot1: snapshot.getChildren()) {
-                    todos.add(snapshot1.getValue(TaskModel.class));
+                for (DataSnapshot snapshot1 : snapshot.getChildren()) {
+                    tasks.add(snapshot1.getValue(Task.class));
                 }
-                allTodos.setValue(todos);
+                allTasks.setValue(tasks);
             }
 
             @Override
@@ -130,4 +132,3 @@ public class TaskListRepository {
         });
     }
 }
-

@@ -7,34 +7,32 @@ import androidx.annotation.NonNull;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 
-import com.example.taskmanager.model.UserProfileModel;
-import com.google.android.gms.tasks.OnCompleteListener;
-import com.google.android.gms.tasks.OnSuccessListener;
-import com.google.android.gms.tasks.Task;
+import com.example.taskmanager.model.UserProfile;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
-import com.google.firebase.database.annotations.NotNull;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
+
+import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class ProfileRepository {
-    public static final String TAG = "ProfileRepository";
-    List<UserProfileModel> userProfiles;
-    List<UserProfileModel> friends;
-    private final DatabaseReference myRef;
-    private final MutableLiveData<UserProfileModel> userProfile;
-    private final MutableLiveData<List<UserProfileModel>> allProfiles;
-    private final MutableLiveData<List<UserProfileModel>> allFriends;
-    private final MutableLiveData<Boolean> addFriendCheck;
 
-    public ProfileRepository(Application application) {
+    private final DatabaseReference myRef;
+    private final MutableLiveData<UserProfile> userProfile;
+    private final MutableLiveData<List<UserProfile>> allProfiles;
+    private final MutableLiveData<List<UserProfile>> allFriends;
+    private final MutableLiveData<Boolean> addFriendCheck;
+    List<UserProfile> userProfiles;
+    List<UserProfile> friends;
+
+    public ProfileRepository(Application qpp) {
         myRef = FirebaseDatabase.getInstance().getReference("profiles");
         userProfile = new MutableLiveData<>();
         allProfiles = new MutableLiveData<>();
@@ -44,15 +42,15 @@ public class ProfileRepository {
         friends = new ArrayList<>();
     }
 
-    public LiveData<UserProfileModel> getUserProfile() {
+    public LiveData<UserProfile> getUserProfile() {
         return userProfile;
     }
 
-    public LiveData<List<UserProfileModel>> getAllProfiles() {
+    public LiveData<List<UserProfile>> getAllProfiles() {
         return allProfiles;
     }
 
-    public LiveData<List<UserProfileModel>> getAllFriends() {
+    public LiveData<List<UserProfile>> getAllFriends() {
         return allFriends;
     }
 
@@ -66,7 +64,7 @@ public class ProfileRepository {
             public void onDataChange(@NonNull @NotNull DataSnapshot snapshot) {
                 friends.clear();
                 for (DataSnapshot snapshot1 : snapshot.getChildren()) {
-                    UserProfileModel profile = snapshot1.getValue(UserProfileModel.class);
+                    UserProfile profile = snapshot1.getValue(UserProfile.class);
                     friends.add(profile);
                 }
                 allFriends.setValue(friends);
@@ -79,13 +77,14 @@ public class ProfileRepository {
         });
     }
 
+    //TODO: fix
     public void getUsersProfile() {
         myRef.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull @NotNull DataSnapshot snapshot) {
                 userProfiles.clear();
-                for (DataSnapshot snapshot1 : snapshot.getChildren()) {
-                    UserProfileModel profile = snapshot1.getValue(UserProfileModel.class);
+                for (DataSnapshot ds : snapshot.getChildren()) {
+                    UserProfile profile = ds.getValue(UserProfile.class);
                     userProfiles.add(profile);
                 }
                 allProfiles.setValue(userProfiles);
@@ -98,27 +97,24 @@ public class ProfileRepository {
         });
     }
 
-    public void addFriend(List<UserProfileModel> usersProfile, String uid, String userNickName) {
-        for (UserProfileModel userProfile : usersProfile) {
-            if (userProfile.getUserName().equals(userNickName)) {
+    public void addFriend(List<UserProfile> usersProfile, String uid, String userNickName) {
+        for (UserProfile userProfile : usersProfile) {
+            if (userProfile.getNickName().equals(userNickName)) {
                 myRef.child(uid).child("friends").addListenerForSingleValueEvent(new ValueEventListener() {
                     @Override
                     public void onDataChange(@NonNull @NotNull DataSnapshot snapshot) {
                         boolean overlapCheck = true;
                         for (DataSnapshot snapshot1 : snapshot.getChildren()) {
-                            UserProfileModel profile = snapshot1.getValue(UserProfileModel.class);
-                            if (profile.getUserName().equals(userNickName))
+                            UserProfile profile = snapshot1.getValue(UserProfile.class);
+                            if (profile.getNickName().equals(userNickName))
                                 overlapCheck = false;
                         }
 
                         if (overlapCheck) {
                             myRef.child(uid).child("friends").push().setValue(userProfile)
-                                    .addOnCompleteListener(new OnCompleteListener<Void>() {
-                                        @Override
-                                        public void onComplete(@NonNull @NotNull Task<Void> task) {
-                                            if (task.isSuccessful())
-                                                addFriendCheck.setValue(true);
-                                        }
+                                    .addOnCompleteListener(task -> {
+                                        if (task.isSuccessful())
+                                            addFriendCheck.setValue(true);
                                     });
                         } else {
                             addFriendCheck.setValue(false);
@@ -140,7 +136,7 @@ public class ProfileRepository {
         myRef.child(uid).addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull @NotNull DataSnapshot snapshot) {
-                UserProfileModel profile = snapshot.getValue(UserProfileModel.class);
+                UserProfile profile = snapshot.getValue(UserProfile.class);
                 if (profile != null)
                     userProfile.setValue(profile);
             }
@@ -152,31 +148,21 @@ public class ProfileRepository {
         });
     }
 
-    public void setUser(UserProfileModel profile) {
+    public void setUser(UserProfile profile) {
         String uid = profile.getUid();
         StorageReference storage = FirebaseStorage.getInstance().getReference().child("profiles/" + uid + ".jpg");
         UploadTask uploadTask = storage.putFile(Uri.parse(profile.getTempPhotoUri()));
-        uploadTask.addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
-            @Override
-            public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+        uploadTask.addOnSuccessListener(taskSnapshot -> storage.getDownloadUrl().addOnSuccessListener(uri -> {
+            Uri profileUri = uri;
+            profile.setProfileUri(profileUri.toString());
 
-                storage.getDownloadUrl().addOnSuccessListener(new OnSuccessListener<Uri>() {
-                    @Override
-                    public void onSuccess(Uri uri) {
-                        Uri profileUri = uri;
-                        profile.setProfileUri(profileUri.toString());
+            myRef.child(uid).setValue(profile).addOnCompleteListener(task -> {
+                if (task.isSuccessful())
+                    getUser(uid);
+            });
+        }));
 
-                        myRef.child(uid).setValue(profile).addOnCompleteListener(new OnCompleteListener<Void>() {
-                            @Override
-                            public void onComplete(@NonNull @NotNull Task<Void> task) {
-                                if (task.isSuccessful())
-                                    getUser(uid);
-                            }
-                        });
-                    }
-                });
-            }
-        });
     }
-}
 
+
+}

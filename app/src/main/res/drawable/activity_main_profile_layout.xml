@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+
+    <solid
+        android:color="#00BCD4"/>
+
+    <corners
+        android:radius="30dp"/>
+
+    <size
+        android:width="20dp"
+        android:height="20dp"/>
+
+<!--    <RelativeLayout-->
+<!--        android:layout_width="70dp"-->
+<!--        android:layout_height="70dp"-->
+<!--        android:layout_gravity="center_vertical"-->
+<!--        android:background="@drawable/activity_main_profile_layout">-->
+
+<!--        <ImageView-->
+<!--            android:layout_width="30dp"-->
+<!--            android:layout_height="30dp"-->
+<!--            android:src="@drawable/basic_profile"-->
+<!--            android:layout_centerInParent="true"-->
+<!--            android:tint="#EBFFFFFF"/>-->
+
+<!--    </RelativeLayout>-->
+
+</shape>
